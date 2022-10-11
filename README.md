@@ -95,6 +95,8 @@ Run this line of code in the terminal to produce a FASTA file from the GFA file 
 If there is already a copy of the assembly.py script in another location, you can copy it to your folder using
 ```cp -r /file/path/to/source/location/assemblystats.py .```
 
+Otherwise, there is a copy of the assemblystats.py script lives in this directory
+
 Change the permissions so you can execute the file 
 
 ```chmod +x assemblystats.py ```
@@ -104,117 +106,48 @@ And load the python module to run it
 ```module load python```
 
 
-### assemblystat.py script content
 
-```python
-#!/usr/bin/env python
+## Genome size from kmers
 
-import numpy as np
-from itertools import groupby
-import json
-import sys
+Resources: 
++ https://github.com/tbenavi1/genomescope2.0
++ https://doi.org/10.1093/bioinformatics/btx304
++ https://github.com/refresh-bio/KMC
 
+Citations:
+ + Kokot et al. 2017 https://doi.org/10.1093/bioinformatics/btx304
+ + Deorowicz et al. 2015 https://doi.org/10.1093/bioinformatics/btv022 Pages 1569–1576
+ + Deorowicz et al. 2013 https://doi.org/10.1186/1471-2105-14-160
 
-def fasta_iter(fasta_file):
-    """Takes a FASTA file, and produces a generator of Header and Sequences.
-    This is a memory-efficient way of analyzing a FASTA files -- without
-    reading the entire file into memory.
+```bash
+#!/bin/bash
+#SBATCH --job-name=Hlineata_kmc
+#SBATCH -o Hlineata_kmc_%j.out
+#SBATCH --mail-type=FAIL,END
+#SBATCH --mail-user=rkeating.godfrey@ufl.edu
+#SBATCH -c 3
+#SBATCH --mem-per-cpu=4gb
+#SBATCH -t 00:30:00
+#SBATCH --account=kawahara
+#SBATCH --qos=kawahara
 
-    Parameters
-    ----------
-    fasta_file : str
-        The file location of the FASTA file
+module load kmc/3.2.1
 
-    Returns
-    -------
-    header: str
-        The string contained in the header portion of the sequence record
-        (everything after the '>')
-    seq: str
-        The sequence portion of the sequence record
-    """
+# create directory for kmc temporary files
+mkdir kmc_tmp
+ 
+kmc -k29 /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/m64219e_220329_140935.hifi_reads.fastq.gz 29mers kmc_tmp
 
-    fh = open(fasta_file)
-    fa_iter = (x[1] for x in groupby(fh, lambda line: line[0] == ">"))
-    for header in fa_iter:
-        # drop the ">"
-        header = next(header)[1:].strip()
-        # join all sequence lines to one.
-        seq = "".join(s.upper().strip() for s in next(fa_iter))
-        yield header, seq
+# Having the k-mers counted it is possible to dump KMC binary database to textual form with kmc_tools.
 
+kmc_tools transform 29mers dump 21mers.txt
 
-def read_genome(fasta_file):
-    """Takes a FASTA file, and produces 2 lists of sequence lengths. It also
-    calculates the GC Content, since this is the only statistic that is not
-    calculated based on sequence lengths.
-
-    Parameters
-    ----------
-    fasta_file : str
-        The file location of the FASTA file
-
-    Returns
-    -------
-    contig_lens: list
-        A list of lengths of all contigs in the genome.
-    scaffold_lens: list
-        A list of lengths of all scaffolds in the genome.
-    gc_cont: float
-        The percentage of total basepairs in the genome that are either G or C.
-    """
-
-    gc = 0
-    total_len = 0
-    contig_lens = []
-    scaffold_lens = []
-    for _, seq in fasta_iter(fasta_file):
-        scaffold_lens.append(len(seq))
-        if "NN" in seq:
-            contig_list = seq.split("NN")
-        else:
-            contig_list = [seq]
-        for contig in contig_list:
-            if len(contig):
-                gc += contig.count('G') + contig.count('C')
-                total_len += len(contig)
-                contig_lens.append(len(contig))
-    gc_cont = (gc / total_len) * 100
-    return contig_lens, scaffold_lens, gc_cont
-
-
-def calculate_stats(seq_lens, gc_cont):
-    stats = {}
-    seq_array = np.array(seq_lens)
-    stats['sequence_count'] = seq_array.size
-    stats['gc_content'] = gc_cont
-    sorted_lens = seq_array[np.argsort(-seq_array)]
-    stats['longest'] = int(sorted_lens[0])
-    stats['shortest'] = int(sorted_lens[-1])
-    stats['median'] = np.median(sorted_lens)
-    stats['mean'] = np.mean(sorted_lens)
-    stats['total_bps'] = int(np.sum(sorted_lens))
-    csum = np.cumsum(sorted_lens)
-    for level in [10, 20, 30, 40, 50]:
-        nx = int(stats['total_bps'] * (level / 100))
-        csumn = min(csum[csum >= nx])
-        l_level = int(np.where(csum == csumn)[0])
-        n_level = int(sorted_lens[l_level])
-
-        stats['L' + str(level)] = l_level
-        stats['N' + str(level)] = n_level
-    return stats
-
-
-if __name__ == "__main__":
-    infilename = sys.argv[1]
-    contig_lens, scaffold_lens, gc_cont = read_genome(infilename)
-    contig_stats = calculate_stats(contig_lens, gc_cont)
-    scaffold_stats = calculate_stats(scaffold_lens, gc_cont)
-    stat_output = {'Contig Stats': contig_stats,
-                   'Scaffold Stats': scaffold_stats}
-    print(json.dumps(stat_output, indent=2, sort_keys=True))
+kmc_tools transform 29mers histogram 21mer_reads.histo
 ```
+
+After generating the .histo file, it can be dragged into the GenomeScope GUI: http://qb.cshl.edu/genomescope/genomescope2.0/ to produce k-mer profile
+
+
 
 ## BUSCO 
 
@@ -264,6 +197,8 @@ busco -f -i /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_assembly/H_l
  -o BUSCO_Hlineata_endopterygota -l /data/reference/busco/v5/lineages/endopterygota_odb10        \
  -m genome -c 6
  ```
+
+```Results: C:99.2%[S:95.9%,D:3.3%],F:0.3%,M:0.5%,n:2124```
 
 
  ## Duplicate purging
@@ -371,44 +306,43 @@ purge_haplotigs purge  \
 -o H_lineata_hifiasm_220728_purge
 ```
 
-## Genome size from kmers
+Compare he previous assembly size with the duplicate-purged assembly 
 
-Resources: 
-+ https://github.com/tbenavi1/genomescope2.0
-+ https://doi.org/10.1093/bioinformatics/btx304
-+ https://github.com/refresh-bio/KMC
+Hyles lineata went from 471108619 to 452617722
 
-Citations:
- + Kokot et al. 2017 https://doi.org/10.1093/bioinformatics/btx304
- + Deorowicz et al. 2015 https://doi.org/10.1093/bioinformatics/btv022 Pages 1569–1576
- + Deorowicz et al. 2013 https://doi.org/10.1186/1471-2105-14-160
+
+
+### (4) Rerun BUSCO
+
+Run BUSCO on duplicate-purged genome 
 
 ```bash
 #!/bin/bash
-#SBATCH --job-name=Hlineata_kmc
-#SBATCH -o Hlineata_kmc_%j.out
+#SBATCH --job-name=Hlineata_busco
+#SBATCH -o Hlineata_busco5_endo_ctg_220728%j.out
 #SBATCH --mail-type=FAIL,END
 #SBATCH --mail-user=rkeating.godfrey@ufl.edu
-#SBATCH -c 3
-#SBATCH --mem-per-cpu=4gb
-#SBATCH -t 00:30:00
+#SBATCH --mem-per-cpu=2gb
+#SBATCH -t 3:00:00
+#SBATCH -c 6
 #SBATCH --account=kawahara
-#SBATCH --qos=kawahara
 
-module load kmc/3.2.1
+export BUSCO_CONFIG_FILE=/blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_busco/config.ini
+export AUGUSTUS_CONFIG_PATH=/blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_busco/
 
-# create directory for kmc temporary files
-mkdir kmc_tmp
- 
-kmc -k21 /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/m64219e_220329_140935.hifi_reads.fastq.gz 29mers kmc_tmp
+echo $BUSCO_CONFIG_FILE
 
-# Having the k-mers counted it is possible to dump KMC binary database to textual form with kmc_tools.
+module load busco/5.2.0
 
-kmc_tools transform 29mers dump 21mers.txt
+busco -f -i /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_assembly/H_lineata_220728.purge.fasta \
+ -o BUSCO_Hlineata_lepidoptera -l /data/reference/busco/v5/lineages/lepidoptera_odb10        \
+ -m genome -c 6
+ ```
 
-kmc_tools transform 29mers histogram 21mer_reads.histo
-```
+```Results: C:98.9%[S:97.9%,D:1.0%],F:0.2%,M:0.9%,n:5286```
 
-After generating the .histo file, it can be dragged into the GenomeScope GUI: http://qb.cshl.edu/genomescope/genomescope2.0/ to produce k-mer profile
+Looks like this worked to reduce the duplication percent while not reducing the completeness BUSCO a lot
+
+
  
 
