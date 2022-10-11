@@ -17,7 +17,9 @@ The primary files of interest to you are:
 
 The fastqc on the fastq file took about 45 minutes to run, so I suggest submitting it as a SLURM job
 
-## ########-----START FASTQC ASSEMBLY SCRIPT CONTENT-----######
+START FASTQC ASSEMBLY SCRIPT CONTENT
+
+
 ```bash
 #!/bin/bash
 #SBATCH --job-name=H_lineata_fastqc
@@ -39,4 +41,18 @@ fastqc m64219e_220329_140935.hifi_reads.fastq.gz
 
 ```
 
-## ########-----END FASTQC ASSEMBLY SCRIPT CONTENT-----######
+END FASTQC ASSEMBLY SCRIPT CONTENT
+
+
+
+# PacBio Adapter sequence check
+
+Source: commands provided by Yi-Ming Weng, postdoc in Kawahara lab
+
+'zcat m64219e_220329_140935.hifi_reads.fastq.gz | grep -v "@" | grep "ATCTCTCTCTTTTCCTCCTCCTCCGTTGTTGTTGTTGAGAGAGAT"  | wc -l'
+This is for the adapter, where the sequence I grep is the adapter sequence in the UniVec database of NCBI
+output: ### found 395 matches
+
+'zcat m64219e_220329_140935.hifi_reads.fastq.gz | grep -v "@" | grep "AAAAAAAAAAAAAAAAAATTAACGGAGGAGGAGGA"  | wc -l' 
+This is for the Pacific Biosciences C2 Primer
+output: ### found 0 match
