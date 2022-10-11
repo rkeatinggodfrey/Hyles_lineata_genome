@@ -308,7 +308,18 @@ purge_haplotigs  hist  \
 -g /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/m64219e_220329_140935.hifi_reads.fasta 
 ```
 
-## (2) Take a look a the resulting histogram and decide the cut offs I decided 6 an 118 with a median value of 34
+## (2) Determine cut offs
+
+Take a look a the resulting histogram and decide the cut offs 
++ -l read depth low cutoff
++ -m low point between haploid and diploid peaks
++ -h read depth high cutoff
+
++ -j auto-assign contig as junk if this % or greater is low/high coverage
++ -s auto-assign contig as suspected haplotig if the % or less of the contig is diploid level of coverage
+
+I decided 6 an 118 with a median value of 34
+
 
 ```bash
 #!/bin/bash
