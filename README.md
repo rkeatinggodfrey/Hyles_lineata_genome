@@ -1,5 +1,5 @@
 # Hyles_lineata_genome
-# Assembly and annotation of white-lined sphinx moth genome
+## Assembly of the white-lined sphinx moth genome from PacBio Sequel IIe long-read sequencing
 
 ## Orientation to Pac Bio Sequel IIe data files
 PacBio Sequel IIe will provide you a number of files as outputs.
