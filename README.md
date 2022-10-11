@@ -13,7 +13,7 @@ The primary files of interest to you are:
 
 (3) yourjobnumber.fasta.gz # contains sequences without stats/metadata
 
-# Fast QC on reads
+## Fast QC on reads
 
 The fastqc on the fastq file took about 45 minutes to run, so I suggest submitting it as a SLURM job
 
@@ -40,7 +40,7 @@ fastqc m64219e_220329_140935.hifi_reads.fastq.gz
 ```
 
 
-# PacBio adapter sequence check
+## PacBio adapter sequence check
 
 Source: commands provided by Yi-Ming Weng, postdoc in Kawahara lab
 
@@ -54,7 +54,7 @@ This is for the Pacific Biosciences C2 Primer
 output: ### found 0 match
 
 
-# HiFiasm Genome Assembly 
+## HiFiasm Genome Assembly 
 
 Source: https://hifiasm.readthedocs.io/en/latest/pa-assembly.html
 
@@ -81,7 +81,7 @@ module load hifiasm
 hifiasm -o /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_assembly/H_lineata_hifiasm_220728.asm -l 3 -t 30 /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/m64219e_220329_140935.hifi_reads.fastq.gz
 ```
 
-# Genome assembly quality assessment
+## Genome assembly quality assessment
 
 Description of step:
 
@@ -104,7 +104,7 @@ And load the python module to run it
 ```module load python```
 
 
-## assemblystat.py script content
+### assemblystat.py script content
 
 ```python
 #!/usr/bin/env python
@@ -216,7 +216,7 @@ if __name__ == "__main__":
     print(json.dumps(stat_output, indent=2, sort_keys=True))
 ```
 
-# BUSCO 
+## BUSCO 
 
 If you prefer, you can make a directory for your BUSCO submission scripts and outputs
 
@@ -266,7 +266,7 @@ busco -f -i /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_assembly/H_l
  ```
 
 
- # Duplicate purging
+ ## Duplicate purging
 
 Source: Script from Yi-Ming Weng, a postdoc in the Kawahara lab following purge_haplotig pipeline (https://bitbucket.org/mroachawri/purge_haplotigs/src/master/)
 
@@ -278,7 +278,7 @@ Source: Script from Yi-Ming Weng, a postdoc in the Kawahara lab following purge_
  + (3) Purge duplicates
  + (4) Re-run BUSCO on duplicate purged assembly
 
-## (1) Map raw reads (subreads) to the genome assembly (if you ran minimap2 for blobplot, you already have these as aligned bam files and only need to run the "purge_haplotigs" part of the code).
+### (1) Map raw reads (subreads) to the genome assembly (if you ran minimap2 for blobplot, you already have these as aligned bam files and only need to run the "purge_haplotigs" part of the code).
 
 ```bash
 #!/bin/bash
@@ -308,7 +308,7 @@ purge_haplotigs  hist  \
 -g /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/m64219e_220329_140935.hifi_reads.fasta 
 ```
 
-## (2) Determine cut offs
+### (2) Determine cut offs
 
 Take a look a the resulting histogram and decide the cut offs 
 + -l read depth low cutoff
@@ -345,7 +345,7 @@ purge_haplotigs cov \
 -s 80
 ```
 
-## (3) Purge duplicates
+### (3) Purge duplicates
 
 Input your original HiFiasm assembly adn the coverage_stats.csv output from step 2.
 
@@ -371,8 +371,44 @@ purge_haplotigs purge  \
 -o H_lineata_hifiasm_220728_purge
 ```
 
-# Genome size from kmers
+## Genome size from kmers
 
+Resources: 
++ https://github.com/tbenavi1/genomescope2.0
++ https://doi.org/10.1093/bioinformatics/btx304
++ https://github.com/refresh-bio/KMC
 
+Citations:
+ + Kokot et al. 2017 https://doi.org/10.1093/bioinformatics/btx304
+ + Deorowicz et al. 2015 https://doi.org/10.1093/bioinformatics/btv022 Pages 1569–1576
+ + Deorowicz et al. 2013 https://doi.org/10.1186/1471-2105-14-160
+
+```bash
+#!/bin/bash
+#SBATCH --job-name=Hlineata_kmc
+#SBATCH -o Hlineata_kmc_%j.out
+#SBATCH --mail-type=FAIL,END
+#SBATCH --mail-user=rkeating.godfrey@ufl.edu
+#SBATCH -c 3
+#SBATCH --mem-per-cpu=4gb
+#SBATCH -t 00:30:00
+#SBATCH --account=kawahara
+#SBATCH --qos=kawahara
+
+module load kmc/3.2.1
+
+# create directory for kmc temporary files
+mkdir kmc_tmp
+ 
+kmc -k21 /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/m64219e_220329_140935.hifi_reads.fastq.gz 29mers kmc_tmp
+
+# Having the k-mers counted it is possible to dump KMC binary database to textual form with kmc_tools.
+
+kmc_tools transform 29mers dump 21mers.txt
+
+kmc_tools transform 29mers histogram 21mer_reads.histo
+```
+
+After generating the .histo file, it can be dragged into the GenomeScope GUI: http://qb.cshl.edu/genomescope/genomescope2.0/ to produce k-mer profile
  
 
