@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#! /usr/bin/env python
 
 import numpy as np
 from itertools import groupby
@@ -105,3 +105,4 @@ if __name__ == "__main__":
     stat_output = {'Contig Stats': contig_stats,
                    'Scaffold Stats': scaffold_stats}
     print(json.dumps(stat_output, indent=2, sort_keys=True))
+
