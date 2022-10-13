@@ -29,6 +29,7 @@ Resources:
 date;hostname;pwd
 
 module load repeatmodeler/2.0
+module load seqkit/2.0.0
 
 BuildDatabase -name H_lineata /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/H_lineata_hifiasm_220728_purge.fasta
 
@@ -70,3 +71,86 @@ RepeatMasker -pa 8 -a -s -xsmall -gff -no_is -lib H_lineata-families.fa /blue/ka
 + step 1: mask simple repeats
 + step 2: mask previously identified Lepidoptera-specific repeats
 + step 3: mask known repeats identified from Repeat Modeler
+
+(1) Mask simple repeats
+
+(2) Mask Lep repeats
+
+(3) Mask known repeats
+
+Check and see how many repeats were masked in this heirachical masking process as compared with masking using RepeatModeler output alone:
+
+After step 1: 
+
+cd /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_RepeatModeler/Hl_repeatmasker_s1
+```
+cat H_lineata_hifiasm_220728_purge.fasta.masked | grep -v ">" | tr -dc a-z | wc -c
+```
+output:
+
+After step 2:
+cd /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_RepeatModeler/Hl_repeatmasker_s2
+```
+cat H_lineata_hifiasm_220728_purge.fasta.masked.masked | grep -v ">" | tr -dc a-z | wc -c
+```
+output: 7222467
+
+After step 3 (total): 
+```
+cd /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_RepeatModeler/Hl_repeatmasker_s3
+cat H_lineata_hifiasm_220728_purge.fasta.masked.masked.masked | grep -v ">" | tr -dc a-z | wc -c
+```
+output: 
+
+
+# Genome Annotation: BRAKER 2
+
+Resources:
++ 
++ Running BRAKER with Protein data: 
++ Running BRAKER with RNA-seq data: https://github.com/Gaius-Augustus/BRAKER#braker-with-rna-seq-data
+
+
+### (1) Running BRAKER with Protein data
+cd /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_Braker
+
+``` wget https://v100.orthodb.org/download/odb10_arthropoda_fasta.tar.gz
+tar xvf odb10_arthropoda_fasta.tar.gz
+arthropoda/Rawdata/* > arthropod.proteins.fasta
+```
+
+if the wget command throws a certificate error, use:
+```wget --no-check-certificate https://v100.orthodb.org/download/odb10_arthropoda_fasta.tar.gz
+```
+
+I additionaly downloaded M. sexta protein sequences into my ncbi downloads folder and move them into the folder where I am running
+BRAKER2
+
+Download from ncbi:
+```bash 
+#!/bin/bash
+#SBATCH --job-name=ncbi_download
+#SBATCH -o %A_%a.220701_NCBI_Download.out
+#SBATCH --mail-user=rkeating.godfrey@ufl.edu
+#SBATCH --mail-type=FAIL,END
+#SBATCH -c 1
+#SBATCH --mem-per-cpu=8gb
+#SBATCH -t 02:00:00
+#SBATCH --account=kawahara
+#SBATCH --qos=kawahara
+
+module load edirect/12.2
+
+## Retrieve Manduca sexta protein and mRNA
+
+esearch -db protein -query "Manduca sexta [ORGN]" | efetch -format fasta > M_sexta_protein.fasta
+```
+
+move into BRAKER2 folder:
+
+```mv M_sexta_protein.fasta /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_Braker/
+```
+
+Now combine these with the other arthropod proteins
+
+cat arthropod.proteins.fasta M_sexta_protein.fasta > all_proteins.fasta

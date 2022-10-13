@@ -344,5 +344,7 @@ busco -f -i /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_assembly/H_l
 Looks like this worked to reduce the duplication percent while not reducing the completeness BUSCO a lot
 
 
- 
+ Check and make sure adapater sequences are not in the assembly
+```zcat H_lineata_hifiasm_220728_purge.fasta | grep -v "@" | grep "ATCTCTCTCTTTTCCTCCTCCTCCGTTGTTGTTGTTGAGAGAGAT" | wc -l```
+
 
