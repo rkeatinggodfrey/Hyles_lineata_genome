@@ -105,13 +105,19 @@ output:
 
 # Genome Annotation: BRAKER 2
 
+BRAKER2 provides a method for annotating using protein or RNA-seq data. They describe using proteins from any evolutionary distance and with proteins of short evolutionary distance, but note that the latter is a decpreciated pipeline. Therefore, I used the first pipeline for my protein evidence pipeline.
+
 Resources:
 + 
-+ Running BRAKER with Protein data: 
++ Running BRAKER with proteins of any evolutionary distance: 
 + Running BRAKER with RNA-seq data: https://github.com/Gaius-Augustus/BRAKER#braker-with-rna-seq-data
 
 
-### (1) Running BRAKER with Protein data
+## (1) Running BRAKER with Protein data
+
+## (a) Retrieve protein sequences
+
+### First retreive protein sequences from the BUSCO arthropod database
 cd /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_Braker
 
 ``` wget https://v100.orthodb.org/download/odb10_arthropoda_fasta.tar.gz
@@ -122,9 +128,8 @@ arthropoda/Rawdata/* > arthropod.proteins.fasta
 if the wget command throws a certificate error, use:
 ```wget --no-check-certificate https://v100.orthodb.org/download/odb10_arthropoda_fasta.tar.gz
 ```
-
-I additionaly downloaded M. sexta protein sequences into my ncbi downloads folder and move them into the folder where I am running
-BRAKER2
+### You can also include protein sequences from a closely related species 
+I additionaly downloaded M. sexta protein sequences into my ncbi downloads folder and move them into the folder where I am running BRAKER2
 
 Download from ncbi:
 ```bash 
