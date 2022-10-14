@@ -103,12 +103,18 @@ cat H_lineata_hifiasm_220728_purge.fasta.masked.masked.masked | grep -v ">" | tr
 output: 
 
 
+
+Once satisfied with this, I renamed the final version
+```mv H_lineata_hifiasm_220728_purge.fasta.masked.masked.masked H_lineata_assembly_final_3masked.fasta```
+
+And then moved it to the parent folder
+```mv H_lineata_assembly_final_3masked.fasta /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/```
+
 # Genome Annotation: BRAKER 2
 
 BRAKER2 provides a method for annotating using protein or RNA-seq data. They describe using proteins from any evolutionary distance and with proteins of short evolutionary distance, but note that the latter is a decpreciated pipeline. Therefore, I used the first pipeline for my protein evidence pipeline.
 
 Resources:
-+ 
 + Running BRAKER with proteins of any evolutionary distance: 
 + Running BRAKER with RNA-seq data: https://github.com/Gaius-Augustus/BRAKER#braker-with-rna-seq-data
 
@@ -118,9 +124,10 @@ Resources:
 ## (a) Retrieve protein sequences
 
 ### First retreive protein sequences from the BUSCO arthropod database
-cd /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_Braker
 
-``` wget https://v100.orthodb.org/download/odb10_arthropoda_fasta.tar.gz
+```cd /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2```
+
+```wget https://v100.orthodb.org/download/odb10_arthropoda_fasta.tar.gz
 tar xvf odb10_arthropoda_fasta.tar.gz
 arthropoda/Rawdata/* > arthropod.proteins.fasta
 ```
@@ -128,7 +135,10 @@ arthropoda/Rawdata/* > arthropod.proteins.fasta
 if the wget command throws a certificate error, use:
 ```wget --no-check-certificate https://v100.orthodb.org/download/odb10_arthropoda_fasta.tar.gz
 ```
-### You can also include protein sequences from a closely related species 
+
+
+### Retrieve protein sequences from a well-annotated, closely related species (optional) 
+
 I additionaly downloaded M. sexta protein sequences into my ncbi downloads folder and move them into the folder where I am running BRAKER2
 
 Download from ncbi:
@@ -153,9 +163,90 @@ esearch -db protein -query "Manduca sexta [ORGN]" | efetch -format fasta > M_sex
 
 move into BRAKER2 folder:
 
-```mv M_sexta_protein.fasta /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_Braker/
-```
+```mv M_sexta_protein.fasta /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/ ```
 
 Now combine these with the other arthropod proteins
 
-cat arthropod.proteins.fasta M_sexta_protein.fasta > all_proteins.fasta
+```cat arthropod.proteins.fasta M_sexta_protein.fasta > all_proteins.fasta ```
+
+## (b) Run [ProtHint](https://github.com/gatech-genemark/ProtHint#protein-database-preparation) to create protein gff file.
+BRAKER can use create a protein gff file as the first step, but it may be better to create this file on your own and then feed it into BRAKER.
+
+```sbatch -J Hl_ProtHint prothint.sh /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/H_lineata_assembly_final_3masked.fasta /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/all_proteins.fasta```
+
+```bash
+#!/bin/bash
+#SBATCH --job-name=%x_%j
+#SBATCH --output=%xc_%j.log
+#SBATCH --mail-user=rkeating.godfrey@ufl.edu
+#SBATCH --mail-type=FAIL,END
+#SBATCH --mem-per-cpu=4gb
+#SBATCH --time=24:00:00
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=16
+
+dates;hostname;pwd
+
+genome=${1}
+protein=${2}
+
+module load prothint/2.6.0
+
+prothint.py --threads ${SLURM_CPUS_ON_NODE:-1} ${genome} ${protein}
+```
+
+This will create an output that is ready to use in BRAKER and AUGUSTUS:
++ ```prothint_augustus.gff```
+
+## (c) Run BRAKER2 
+
+```sbatch -J Hl_braker2_protein Hl_braker2_protein.sh /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/H_lineata_assembly_final_3masked.fasta /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/prothint_augustus.gff Hyles_lineata
+
+```bash
+#!/bin/bash
+#SBATCH --job-name=%x_%j
+#SBATCH --output=%x_%j.log
+#SBATCH --mail-user=rkeating.godfrey@ufl.edu
+#SBATCH --mail-type=FAIL,END
+#SBATCH --mem-per-cpu=8gb
+#SBATCH --time=96:00:00
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=32
+dates;hostname;pwd
+
+genome=${1}
+protein_gff=${2}
+species=${3}
+
+module load conda
+module load braker/2.1.6
+
+braker.pl \
+--AUGUSTUS_CONFIG_PATH=/blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_busco/ \
+--genome=${genome} --species ${species} --hints=${protein_gff} --softmasking --gff3 --cores 32 --AUGUSTUS_ab_initio
+```
+
+
+## (2) Running BRAKER with RNA-seq data
+
+### (a) Map RNA sequencing reads to masked genome using guidance from [Kim and Kim 2022](https://www.sciencedirect.com/science/article/pii/S2666166722003860?via%3Dihub#sec2)
+
+```
+#!/bin/bash
+#SBATCH --job-name=%x_%j_Hl_mapreads
+#SBATCH --output=%A_%a.Hl_mapreads.out
+#SBATCH --mail-user=rkeating.godfrey@ufl.edu
+#SBATCH --mail-type=FAIL,END
+#SBATCH --mem-per-cpu=8gb
+#SBATCH --time=96:00:00
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=32
+dates;hostname;pwd
+
+module load hisat2
+
+# create a masked genome index
+
+hisat2-build Hifi_scaffold.fa.masked.masked Hifi
+
+```
