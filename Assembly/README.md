@@ -145,7 +145,7 @@ kmc_tools transform 29mers dump 21mers.txt
 kmc_tools transform 29mers histogram 21mer_reads.histo
 ```
 
-After generating the .histo file, it can be dragged into the GenomeScope GUI: http://qb.cshl.edu/genomescope/genomescope2.0/ to produce k-mer profile
+After generating the .histo file, it can be dragged into the [GenomeScope GUI](http://qb.cshl.edu/genomescope/genomescope2.0/) to produce k-mer profile
 
 
 
@@ -311,7 +311,6 @@ Compare he previous assembly size with the duplicate-purged assembly
 Hyles lineata went from 471108619 to 452617722
 
 
-
 ### (4) Rerun BUSCO
 
 Run BUSCO on duplicate-purged genome 
@@ -343,8 +342,126 @@ busco -f -i /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_assembly/H_l
 
 Looks like this worked to reduce the duplication percent while not reducing the completeness BUSCO a lot
 
+ Check and make sure adapter sequences are not in the assembly
+```cat H_lineata_hifiasm_220728_purge.fasta | grep -v "@" | grep "ATCTCTCTCTTTTCCTCCTCCTCCGTTGTTGTTGTTGAGAGAGAT" | wc -l```
 
- Check and make sure adapater sequences are not in the assembly
-```zcat H_lineata_hifiasm_220728_purge.fasta | grep -v "@" | grep "ATCTCTCTCTTTTCCTCCTCCTCCGTTGTTGTTGTTGAGAGAGAT" | wc -l```
+
+## Blobtools
+
+Run a contamination check using blobtools
+
+Scripts and guidance from Shova Mishra (shovamishra@ufl.edu), postdoc in Peter DiGennaro lab 
+
+Resources:
++ https://blobtools.readme.io/docs/seqfilter
++ https://github.com/DRL/blobtools
++ https://blobtools.readme.io/docs/view
+
+### Files needed to run Blobtools
+To run blob tools we need three files (b and c can be submitted as jobs at the same time)
++ (a) nodes.dmp and names.dmp files (from NCBI tax dump) 
++ (b) .bam alignment file (from minimap2 or bowtie2 script) 
++ (c) .nt blast match file (from NCBI megablast)
 
 
+### (a) NCBI tax dump
+
+To download NCBI taxdump and create nodes.dmp and names.dmp, navigate to the folder where you want the data (mine is called Hl_blob), then copy and paste this command in terminal. It will create a data directory with files inside
+
+wget ftp://ftp.ncbi.nlm.nih.gov/pub/taxonomy/taxdump.tar.gz -P data/ \
+tar zxf data/taxdump.tar.gz -C data/ nodes.dmp names.dmp \
+./Hl_blob nodesdb --nodes data/nodes.dmp --names data/names.dmp
+
+### (b) Mapped reads .bam file from minimap2
+
+Resources:
++ https://github.com/lh3/minimap2#general
+
+Note that I use the -ax parameter set to map-pb based on advice from this github for pacbio hifi reads
+
+```bash
+#!/bin/sh
+#SBATCH --job-name=Hl_minimap2
+#SBATCH --output=Hl_minimap2_%j.out
+#SBATCH --mail-type=END,FAIL
+#SBATCH --mail-user=rkeating.godfrey@ufl.edu
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=10
+#SBATCH --mem=60gb
+#SBATCH --time=08:00:00
+#SBATCH --account=kawahara
+#SBATCH --qos=kawahara
+
+pwd; hostname; date
+
+module load minimap2
+
+minimap2 -ax map-pb H_lineata_220728.purge.fasta m64219e_220329_140935.hifi_reads.fastq.gz > Hl.aln.sam
+
+module load samtools
+#convert SAM file to BAM file
+samtools view -S -b Hl.aln.sam > Hl.aln.bam
+
+#Use samtools sort to convert the BAM file to a coordinate sorted BAM file
+samtools sort Hl.aln.bam > Hl.aln.sorted.bam
+
+#index a genome sorted bAM file for quick alignment
+samtools index Hl.aln.sorted.bam > Hl_indexed_sorted_bam
+```
+
+### (c) megablast.nt file of matched hits
+
+While you are running minimap2, you can also run megablast. 
+
+```bash
+#!/bin/sh
+#SBATCH --job-name=Hl_megablast
+#SBATCH --output=Hl_megablast_%j.out
+#SBATCH --mail-type=END,FAIL
+#SBATCH --mail-user=rkeating.godfrey@ufl.edu
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=16
+#SBATCH --mem=20gb
+#SBATCH --time 8-00:00:00
+#SBATCH --qos=kawahara
+#SBATCH --account=kawahara
+
+pwd; hostname; date
+
+module load ncbi_blast
+blastn -db nt -task megablast -query /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/H_lineata_hifiasm_220728_purge.fasta -out Hlineata_megablast.nt -evalue 1e-5 -outfmt "6 qseqid staxids bitscore sgi sskingdoms sscinames" -max_target_seqs 1 -num_threads=16
+```
+
+### Now use these files to run blobtools and plot the results
+
+```bash
+#!/bin/sh
+#SBATCH --job-name=Hl_blob
+#SBATCH --output=Hl_blob_%j.out
+#SBATCH --mail-type=END,FAIL
+#SBATCH --mail-user=rkeating.godfrey@ufl.edu
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=16
+#SBATCH --mem=30gb
+#SBATCH --time 04:00:00
+#SBATCH --qos=kawahara
+#SBATCH --account=kawahara
+
+pwd; hostname; date
+
+## Run blob tools
+ 
+module load blobtools/1.0
+
+blobtools create -i H_lineata_hifiasm_220728_purge.fasta -b Hl.aln.bam -t Hlineata_megablast.nt --nodes nodes.dmp --names names.dmp -o Hlineata
+
+## You can then view and plot
+blobtools view -i Hlineta.blobDB.json
+blobtools plot -i Hlineata.blobDB.json
+
+```
+
+
+## Assembly visualization
+
+Make some nice plots of your assembly stats
