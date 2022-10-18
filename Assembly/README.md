@@ -282,7 +282,7 @@ purge_haplotigs cov \
 
 ### (3) Purge duplicates
 
-Input your original HiFiasm assembly adn the coverage_stats.csv output from step 2.
+Input your original HiFiasm assembly and the coverage_stats.csv output from step 2.
 
 ```bash
 #!/bin/bash
@@ -454,7 +454,6 @@ pwd; hostname; date
 module load blobtools/1.0
 
 blobtools create -i H_lineata_hifiasm_220728_purge.fasta -b Hl.aln.bam -t Hlineata_megablast.nt --nodes nodes.dmp --names names.dmp -o Hlineata
-
 ## You can then view and plot
 blobtools view -i Hlineta.blobDB.json
 blobtools plot -i Hlineata.blobDB.json

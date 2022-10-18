@@ -67,6 +67,16 @@ module load repeatmasker/4.1.1
 RepeatMasker -pa 8 -a -s -xsmall -gff -no_is -lib H_lineata-families.fa /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/H_lineata_hifiasm_220728_purge.fasta$
 ```
 
+Check and see how many repeats were masked in this single-step masking process to compare with heirarchical one that follows
+```
+cd /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_RepeatModeler/masked_purged_v1
+cat H_lineata_hifiasm_220728_purge.fasta.masked | grep -v ">" | tr -dc a-z | wc -c
+```
+
+Output: 169898824
+
+
+
 ### (b) Option 2: Mask according to suggestions from Dr. Darren Card (adapted from Yi-Ming Weng)
 + step 1: mask simple repeats
 + step 2: mask previously identified Lepidoptera-specific repeats
@@ -101,7 +111,7 @@ cd /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_RepeatModeler/Hl_repe
 cat H_lineata_hifiasm_220728_purge.fasta.masked.masked.masked | grep -v ">" | tr -dc a-z | wc -c
 ```
 output: 
-
+141040752
 
 
 Once satisfied with this, I renamed the final version
