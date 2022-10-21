@@ -161,6 +161,14 @@ I copied the config.ini file from another folder on our cluster
 
 ```cp /orange/kawahara/amanda.markee/prelim_luna_dge/genome_assembly/spades/spades_assembly_all_illumina/K77/BUSCO/config.ini . ```
 
+Compile Augustus to get the config files in your busco folder
+```
+git clone https://github.com/Gaius-Augustus/Augustus.git
+cd Augustus
+```
+
+ ~/YOUR_BUSCO_FOLDER/Augustus/config/ contains the config file you will need for running augustus in busco
+
 Edit SLURM submission script to ensure that right paths are set for your genome assembly and busco contig file
 
 Make sure you load the latest version of busco or the most recent one on the cluster. You can use the command "module spider busco" to see what versions are available on the cluster
@@ -187,15 +195,15 @@ The busco command should be followed the path to your assembled genome fasta fil
 #SBATCH --account=kawahara
 
 export BUSCO_CONFIG_FILE=/blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_busco/config.ini
-export AUGUSTUS_CONFIG_PATH=/blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_busco/
+export AUGUSTUS_CONFIG_PATH=/blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_busco/Augustus/config
 
 echo $BUSCO_CONFIG_FILE
 
 module load busco/5.2.0
 
 busco -f -i /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_assembly/H_lineata_hifiasm_220728.asm.bp.p_ctg.fa \
- -o BUSCO_Hlineata_endopterygota -l /data/reference/busco/v5/lineages/endopterygota_odb10        \
- -m genome -c 6
+ -o busco_out_Hl_endo -l /data/reference/busco/v5/lineages/endopterygota_odb10        \
+ -m genome -c 6 --augustus
  ```
 
 ```Results: C:99.2%[S:95.9%,D:3.3%],F:0.3%,M:0.5%,n:2124```
@@ -327,15 +335,16 @@ Run BUSCO on duplicate-purged genome
 #SBATCH --account=kawahara
 
 export BUSCO_CONFIG_FILE=/blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_busco/config.ini
-export AUGUSTUS_CONFIG_PATH=/blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_busco/
+export AUGUSTUS_CONFIG_PATH=/blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_busco/Augustus/config/    
 
 echo $BUSCO_CONFIG_FILE
 
-module load busco/5.2.0
+module load busco/5.3.0
 
-busco -f -i /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_assembly/H_lineata_220728.purge.fasta \
- -o BUSCO_Hlineata_lepidoptera -l /data/reference/busco/v5/lineages/lepidoptera_odb10        \
- -m genome -c 6
+busco -f -i /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/H_lineata_assembly_final_3masked.fasta \
+ -o busco_out_Hl_lep -l /data/reference/busco/v5/lineages/lepidoptera_odb10      \
+ -m genome -c 6 --augustus
+
  ```
 
 ```Results: C:98.9%[S:97.9%,D:1.0%],F:0.2%,M:0.9%,n:5286```

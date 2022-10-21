@@ -205,6 +205,26 @@ module load prothint/2.6.0
 prothint.py --threads ${SLURM_CPUS_ON_NODE:-1} ${genome} ${protein}
 ```
 
+
+
+```bash
+#!/bin/bash
+#SBATCH --job-name=%x_%j
+#SBATCH --output=%xc_%j.log
+#SBATCH --mail-user=rkeating.godfrey@ufl.edu
+#SBATCH --mail-type=FAIL,END
+#SBATCH --mem-per-cpu=4gb
+#SBATCH --time=24:00:00
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=16
+
+dates;hostname;pwd
+
+module load prothint/2.6.0
+
+prothint.py /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/H_lineata_assembly_final_3masked.fasta /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/arthropod.proteins.fasta
+```
+
 This will create an output that is ready to use in BRAKER and AUGUSTUS:
 + ```prothint_augustus.gff```
 
@@ -214,14 +234,17 @@ This will create an output that is ready to use in BRAKER and AUGUSTUS:
 
 ```bash
 #!/bin/bash
-#SBATCH --job-name=%x_%j
-#SBATCH --output=%x_%j.log
+#SBATCH --job-name=%j_Hl_braker2_prot
+#SBATCH --output=%j_Hl_braker2_prot.log
 #SBATCH --mail-user=rkeating.godfrey@ufl.edu
 #SBATCH --mail-type=FAIL,END
 #SBATCH --mem-per-cpu=8gb
 #SBATCH --time=96:00:00
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=32
+dates;hostname;pwd
+
+
 dates;hostname;pwd
 
 genome=${1}
@@ -234,6 +257,33 @@ module load braker/2.1.6
 braker.pl \
 --AUGUSTUS_CONFIG_PATH=/blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_busco/ \
 --genome=${genome} --species ${species} --hints=${protein_gff} --softmasking --gff3 --cores 32 --AUGUSTUS_ab_initio
+```
+
+Alternate method without setting environmental variables
+
+```bash
+#!/bin/bash
+#SBATCH --job-name=%j_Hl_braker2_prot
+#SBATCH --output=%j_Hl_braker2_prot.log
+#SBATCH --mail-user=rkeating.godfrey@ufl.edu
+#SBATCH --mail-type=FAIL,END
+#SBATCH --mem-per-cpu=8gb
+#SBATCH --time=96:00:00
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=32
+dates;hostname;pwd
+
+module load conda
+module load braker/2.1.6
+
+export BUSCO_CONFIG_FILE=/blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/config.ini
+export AUGUSTUS_CONFIG_PATH=/blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/
+
+echo $BUSCO_CONFIG_FILE
+
+braker.pl \
+--AUGUSTUS_CONFIG_PATH=/blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/ \
+--genome=/blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/H_lineata_assembly_final_3masked.fasta --species Hyles_lineata --hints=/blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/prothint_augustus.gff --softmasking --gff3 --cores 32 --AUGUSTUS_ab_initio
 ```
 
 
