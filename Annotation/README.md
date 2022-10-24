@@ -146,7 +146,6 @@ if the wget command throws a certificate error, use:
 ```wget --no-check-certificate https://v100.orthodb.org/download/odb10_arthropoda_fasta.tar.gz
 ```
 
-
 ### Retrieve protein sequences from a well-annotated, closely related species (optional) 
 
 I additionaly downloaded M. sexta protein sequences into my ncbi downloads folder and move them into the folder where I am running BRAKER2
@@ -177,7 +176,7 @@ move into BRAKER2 folder:
 
 Now combine these with the other arthropod proteins
 
-```cat arthropod.proteins.fasta M_sexta_protein.fasta > all_proteins.fasta ```
+```cat arthropod.proteins.fasta M_sexta_protein.fasta > all.proteins.fasta ```
 
 ## (b) Run [ProtHint](https://github.com/gatech-genemark/ProtHint#protein-database-preparation) to create protein gff file.
 BRAKER can use create a protein gff file as the first step, but it may be better to create this file on your own and then feed it into BRAKER.
@@ -228,7 +227,9 @@ prothint.py /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/H_lineata_assem
 This will create an output that is ready to use in BRAKER and AUGUSTUS:
 + ```prothint_augustus.gff```
 
-## (c) Run BRAKER2 
+## (c) Run BRAKER2 with protein evidence
+
+First I ran Braker2 with protein evidence from arthropoda
 
 When trying to run this I noticed that in the file path /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_busco/Augustus/config/species there is a "Sp_1", not Hyles_lineata so I changed the name of this directory 
 
@@ -262,7 +263,41 @@ braker.pl \
 
 ## (2) Running BRAKER with RNA-seq data
 
-### (a) Map RNA sequencing reads to masked genome using guidance from [Kim and Kim 2022](https://www.sciencedirect.com/science/article/pii/S2666166722003860?via%3Dihub#sec2)
+### (a) Download transcriptome data as paired end reads
+
+The ```--split-files```
+
+
+```bash
+
+#!/bin/bash
+#SBATCH --job-name=H_euphorbiae_RNA
+#SBATCH -o %A_%a.220616_Heuphorb_transcriptome.out
+#SBATCH --mail-user=rkeating.godfrey@ufl.edu
+#SBATCH --mail-type=FAIL,END
+#SBATCH -c 2
+#SBATCH --mem-per-cpu=8gb
+#SBATCH -t 01:00:00
+#SBATCH --account=kawahara
+#SBATCH --qos=kawahara
+
+module load gcc/5.2.0
+module load ncbi-vdb/2.8.2
+module load sra/3.0.0
+
+prefetch SRR1695429 --max-size 2500000000
+
+# convert to FASTQ: fastq-dump will convert SRR1695429.sra to SRR1695429.fastq 
+# split-files splits paired end read files 
+
+fastq-dump --split-files  SRR1695429
+```
+
+I did this in an ncbi folder I use for downloading, so I moved the paired-end fastq files to my braker folder:
+
+```mv *.fastq ../Hl_braker2/```
+
+### (b) Map RNA sequencing reads to masked genome using guidance from [Kim and Kim 2022](https://www.sciencedirect.com/science/article/pii/S2666166722003860?via%3Dihub#sec2)
 
 ```
 #!/bin/bash
@@ -273,13 +308,66 @@ braker.pl \
 #SBATCH --mem-per-cpu=8gb
 #SBATCH --time=96:00:00
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=32
+#SBATCH --cpus-per-task=10
 dates;hostname;pwd
 
 module load hisat2
+module load samtools
 
 # create a masked genome index
 
-hisat2-build Hifi_scaffold.fa.masked.masked Hifi
+hisat2-build /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/H_lineata_assembly_final_3masked.fasta Hl_Hifi
+
+# map RNA sequencing reads to the masked genome 
+
+hisat2 -x Hl_Hifi -p 10 -1 /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/SRR1695429_1.fastq  \
+-2 /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/SRR1695429_2.fastq | samtools sort -@ 10 -O BAM -o Hl_He_aln.bam
 
 ```
+
+### (c) Run braker with RNA evidence
+
+sbatch -J Hl_braker2_RNA Hl_braker2_RNA.sh /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/H_lineata_assembly_final_3masked.fasta Hyles_lineata_RNA
+
+```bash
+#!/bin/bash
+#SBATCH --job-name=%x_%j
+#SBATCH --output=%x_%j.log
+#SBATCH --mail-user=rkeating.godfrey@ufl.edu
+#SBATCH --mail-type=FAIL,END
+#SBATCH --mem-per-cpu=8gb
+#SBATCH --time=96:00:00
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=32
+dates;hostname;pwd
+
+genome=${1}
+species=${2}
+
+module load conda
+module load braker/2.1.6
+
+braker.pl \
+--AUGUSTUS_CONFIG_PATH=/blue/kawahara/yimingweng/LepidoPhylo_Project/busco_out/Augustus/config \
+--genome=${genome} --species ${species} \
+--bam=/blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker/Hl_He_sort.bam \
+--softmasking --gff3 --cores 32 --AUGUSTUS_ab_initio
+```
+
+
+
+
+
+
+### BRAKER output
+
+The output file  braker.gtf  
+
+The field in gft format are: 
+
+seqname source feature start end score strand frame transcript ID and gene ID
+
+Resources: 
++ https://github.com/Gaius-Augustus/BRAKER#output-of-braker
+
+
