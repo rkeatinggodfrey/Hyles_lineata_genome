@@ -259,6 +259,7 @@ braker.pl \
 --genome=${genome} --species ${species} --hints=${protein_gff} --softmasking --gff3 --cores 32 --AUGUSTUS_ab_initio
 ```
 
+I moved the files associated with this protein-based annoation to a folder called braker_protein_arth
 
 
 ## (2) Running BRAKER with RNA-seq data
@@ -327,7 +328,9 @@ hisat2 -x Hl_Hifi -p 10 -1 /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/
 
 ### (c) Run braker with RNA evidence
 
-sbatch -J Hl_braker2_RNA Hl_braker2_RNA.sh /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/H_lineata_assembly_final_3masked.fasta Hyles_lineata_RNA
+I created a new folder for this annotation evidence called braker_RNA_He and put the files needed in it (except the assembly, which lives in the parent genome folder)
+
+```sbatch -J Hl_braker2_RNA Hl_braker2_RNA.sh /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/H_lineata_assembly_final_3masked.fasta Hyles_lineata_RNA```
 
 ```bash
 #!/bin/bash
@@ -350,7 +353,7 @@ module load braker/2.1.6
 braker.pl \
 --AUGUSTUS_CONFIG_PATH=/blue/kawahara/yimingweng/LepidoPhylo_Project/busco_out/Augustus/config \
 --genome=${genome} --species ${species} \
---bam=/blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker/Hl_He_sort.bam \
+--bam=/blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker/braker_RNA_He/Hl_He_sort.bam \
 --softmasking --gff3 --cores 32 --AUGUSTUS_ab_initio
 ```
 
