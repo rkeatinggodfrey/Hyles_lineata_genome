@@ -72,7 +72,6 @@ Check and see how many repeats were masked in this single-step masking process t
 cd /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_RepeatModeler/masked_purged_v1
 cat H_lineata_hifiasm_220728_purge.fasta.masked | grep -v ">" | tr -dc a-z | wc -c
 ```
-
 Output: 169898824
 
 
@@ -143,8 +142,7 @@ arthropoda/Rawdata/* > arthropod.proteins.fasta
 ```
 
 if the wget command throws a certificate error, use:
-```wget --no-check-certificate https://v100.orthodb.org/download/odb10_arthropoda_fasta.tar.gz
-```
+```wget --no-check-certificate https://v100.orthodb.org/download/odb10_arthropoda_fasta.tar.gz```
 
 ### Retrieve protein sequences from a well-annotated, closely related species (optional) 
 
@@ -260,7 +258,6 @@ braker.pl \
 ```
 
 I moved the files associated with this protein-based annoation to a folder called braker_protein_arth
-
 
 ## (2) Running BRAKER with RNA-seq data
 
