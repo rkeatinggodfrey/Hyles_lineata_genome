@@ -203,7 +203,6 @@ prothint.py --threads ${SLURM_CPUS_ON_NODE:-1} ${genome} ${protein}
 ```
 
 
-
 ```bash
 #!/bin/bash
 #SBATCH --job-name=%x_%j
@@ -232,6 +231,8 @@ First I ran Braker2 with protein evidence from arthropoda
 When trying to run this I noticed that in the file path /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_busco/Augustus/config/species there is a "Sp_1", not Hyles_lineata so I changed the name of this directory 
 
 ```sbatch -J Hl_braker2_protein Hl_braker2_protein.sh /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/H_lineata_assembly_final_3masked.fasta /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/prothint_augustus.gff Hyles_lineata
+
+sbatch -J Mr_braker2_protein braker2_protein.sh /blue/kawahara/rkeating.godfrey/Manduca_rustica_genome/M_rustica_final_assembly_3masked.fasta /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/prothint_augustus.gff Manduca_rustica
 
 ```bash
 #!/bin/bash
@@ -356,9 +357,6 @@ braker.pl \
 
 
 
-
-
-
 ### BRAKER output
 
 The output file  braker.gtf  
@@ -370,4 +368,81 @@ seqname source feature start end score strand frame transcript ID and gene ID
 Resources: 
 + https://github.com/Gaius-Augustus/BRAKER#output-of-braker
 
+
+
+
+## (3) Evaluate gene models produced by braker2 
+### (a) from arthropod protein database using BUSCO endopterygota ortholog database (odb10_lepidoptera)
+
+```sbatch Hl_prot_model_busco.sh```
+
+
+```bash
+#!/bin/bash
+
+#SBATCH --job-name=Hl_lep_prot_genemodel_busco
+#SBATCH -o Hl_lep_prot_genemodel_busco.log
+#SBATCH --mail-type=FAIL,END
+#SBATCH --mail-user=rkeating.godfrey@ufl.edu
+#SBATCH --mem-per-cpu=4gb
+#SBATCH -t 5:00:00
+#SBATCH -c 12
+
+# define configure file for BUSCO and augustus
+# For augustus, if encounter an authorization issue (error pops up when running busco), try to download the augustus repo and use its config dir
+export BUSCO_CONFIG_FILE="blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_busco/config.ini"
+export AUGUSTUS_CONFIG_PATH="/blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_busco/Augustus/config/"
+
+# load busco, make sure this is the latest version
+module load busco/5.3.0
+module load hmmer/3.2.1
+
+# run busco command
+busco -f -i /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/braker_prot_arth/braker/augustus.hints.aa \
+ -o ./Hl_prot_genemod_busco_out \
+ -l /data/reference/busco/v5/lineages/endopterygota_odb10 \
+ -m protein -c 12
+ ```
+ 
+ Results from dataset endopterygota_odb10
+ 
+ C:94.6%[S:86.6%,D:8.0%],F:2.0%,M:3.4%,n:2124     
+
+
+ ### (b) from Hyles euphorbiae transcriptome using BUSCO endopterygota ortholog database (odb10_lepidoptera)
+
+ ```bash
+ #!/bin/bash
+#SBATCH --job-name=Hl_lep_HeRNA_genemodel_busco
+#SBATCH -o Hl_lep_HeRNA_genemodel_busco.log
+#SBATCH --mail-type=FAIL,END
+#SBATCH --mail-user=rkeating.godfrey@ufl.edu
+#SBATCH --mem-per-cpu=4gb
+#SBATCH -t 5:00:00
+#SBATCH -c 12
+
+# define configure file for BUSCO and augustus
+# For augustus, if encounter an authorization issue (error pops up when running busco), try to download the augustus repo and use its config dir
+export BUSCO_CONFIG_FILE="blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_busco/config.ini"
+export AUGUSTUS_CONFIG_PATH="/blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_busco/Augustus/config/"
+
+# load busco, make sure this is the latest version
+module load busco/5.3.0
+module load hmmer/3.2.1
+
+# run busco command
+busco -f -i /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/braker_RNA_He/braker/augustus.hints.aa \
+ -o ./Hl_RNA_genemod_busco_out \
+ -l /data/reference/busco/v5/lineages/endopterygota_odb10 \
+ -m protein -c 12
+ ```
+
+Result
+
+C:92.9%[S:89.2%,D:3.7%],F:3.0%,M:4.1%,n:2124 
+
+
+# Genome Annotation: TSEBRA
+
+```git clone https://github.com/Gaius-Augustus/TSEBRA```
 
