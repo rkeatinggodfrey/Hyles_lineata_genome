@@ -406,10 +406,12 @@ busco -f -i /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/brak
  
  Results from dataset endopterygota_odb10
  
- C:94.6%[S:86.6%,D:8.0%],F:2.0%,M:3.4%,n:2124     
+ endopterygota = C:94.6%[S:86.6%,D:8.0%],F:2.0%,M:3.4%,n:2124     
+
+ lepidoptera =  C:95.6%[S:86.5%,D:9.1%],F:1.1%,M:3.3%,n:5286  
 
 
- ### (b) from Hyles euphorbiae transcriptome using BUSCO endopterygota ortholog database (odb10_lepidoptera)
+ ### (b) from Hyles euphorbiae transcriptome using BUSCO lepidoptera or endopterygota ortholog database (odb10_lepidoptera)
 
  ```bash
  #!/bin/bash
@@ -439,10 +441,80 @@ busco -f -i /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/brak
 
 Result
 
-C:92.9%[S:89.2%,D:3.7%],F:3.0%,M:4.1%,n:2124 
+endopterygota = C:92.9%[S:89.2%,D:3.7%],F:3.0%,M:4.1%,n:2124 
+
+lepidoptera = C:93.3%[S:89.4%,D:3.9%],F:1.8%,M:4.9%,n:5286 
 
 
 # Genome Annotation: TSEBRA
 
+### (a) Combine gene models from protein and transcriptome evidence
+
+Resources:
++ (TSEBRA Github)[https://onlinelibrary.wiley.com/doi/epdf/10.1002/jmor.21510]
+
+Clone the TSEBRA directory
 ```git clone https://github.com/Gaius-Augustus/TSEBRA```
+
+Gather necessary files
++ augustus.hints.gtf files from Braker2 protein and RNA
++ a configuration (.cfg) file as descirbed (here)[https://github.com/Gaius-Augustus/TSEBRA#configuration-file]. You can use the default file located in /TSEBRA/config/default.ctg as a start. The default is quite strict. 
+
+
+```bash
+#!/bin/bash
+#SBATCH --job-name=Hl_TSEBRA
+#SBATCH -o Hl_TSEBRA.log
+#SBATCH --mail-type=FAIL,END
+#SBATCH --mail-user=rkeating.godfrey@ufl.edu
+#SBATCH --mem-per-cpu=4gb
+#SBATCH -t 24:00:00
+#SBATCH -c 24
+
+module load python3
+
+/blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/TSEBRA/bin/tsebra.py \
+--keep_gtf /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/braker_prot_arth/braker/augustus.hints.gtf,/blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/braker_RNA_He/braker/augustus.hints.gtf \
+-c /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/Hl_tsebra.cfg \
+-e /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/braker_prot_arth/braker/hintsfile.gff,/blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/braker_RNA_He/braker/hintsfile.gff \
+-o Hl_protein_rnaseq_combine.gtf
+
+/blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_busco/Augustus/scripts/gtf2aa.pl \
+/blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/H_lineata_assembly_final_3masked.fasta \
+/blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/Hl_protein_rnaseq_combine.gtf \
+Hl_braker_final_aa.fa
+```
+
+### (b) Run BUSCO on final gene model set
+
+``bash
+ #!/bin/bash
+#SBATCH --job-name=Hl_lep_all_genemodel_busco
+#SBATCH -o Hl_lep_allc_genemodel_busco.log
+#SBATCH --mail-type=FAIL,END
+#SBATCH --mail-user=rkeating.godfrey@ufl.edu
+#SBATCH --mem-per-cpu=4gb
+#SBATCH -t 5:00:00
+#SBATCH -c 12
+
+# define configure file for BUSCO and augustus
+# For augustus, if encounter an authorization issue (error pops up when running busco), try to download the augustus repo and use its config dir
+export BUSCO_CONFIG_FILE="blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_busco/config.ini"
+export AUGUSTUS_CONFIG_PATH="/blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_busco/Augustus/config/"
+
+# load busco, make sure this is the latest version
+module load busco/5.3.0
+module load hmmer/3.2.1
+
+# run busco command
+busco -f -i /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/braker_RNA_He/braker/Hl_braker_final_aa.fa \
+ -o ./Hl_all_genemod_busco_out \
+ -l /data/reference/busco/v5/lineages/lepidoptera_odb10 \
+ -m protein -c 12
+ ```
+ 
+ lepidoptera = C:97.8%[S:55.2%,D:42.6%],F:0.5%,M:1.7%,n:5286 
+
+ This seems to indicate there are a many isoforms of certain genes in this gene set. 
+
 

@@ -151,7 +151,7 @@ kmc_tools transform 29mers histogram 21mer_reads.histo
 
 After generating the .histo file, it can be dragged into the [GenomeScope GUI](http://qb.cshl.edu/genomescope/genomescope2.0/) to produce k-mer profile
 
-
+To view the ouput of this 29mer analysis for Hyles go to: http://genomescope.org/genomescope2.0/analysis.php?code=jmouRQVSrt50V9vi5C9Y
 
 ## BUSCO 
 
@@ -474,9 +474,37 @@ blobtools plot -i Hlineata.blobDB.json
 ```
 
 
+Trying to plot blobDB using R
+
+```bash
+#!/bin/sh
+#SBATCH --job-name=Hl_blob
+#SBATCH --output=Hl_blob_%j.out
+#SBATCH --mail-type=END,FAIL
+#SBATCH --mail-user=rkeating.godfrey@ufl.edu
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=16
+#SBATCH --mem=30gb
+#SBATCH --time 04:00:00
+#SBATCH --qos=kawahara
+#SBATCH --account=kawahara
+
+#Record the time and compute node the job ran on
+date; hostname; pwd
+
+#Use modules to load the environment for R
+module load R
+
+#Run R script 
+Rscript rJson.R
+
+date
+
 ## Assembly visualization
 
 Make some nice plots of your assembly stats
+
+Trying to make comparison graphs with other species
 
 ```bash
 #!/bin/bash
@@ -488,15 +516,16 @@ Make some nice plots of your assembly stats
 #SBATCH -t 3:00:00
 #SBATCH -c 4 
 
-
 module load gcc/5.2.0
 module load bioawk/1.0
 module load R/4.2
 
-echo "platform,length" > length.csv
 
-bioawk -c fastx '{print "H_lineata," length($seq)}' m64219e_220329_140935.hifi_reads.fastq.gz.fastq.gz >> length.csv
-bioawk -c fastx '{print "OTHER SPECIES," length($seq)}'  OTHERSPECIES.fasta.gz >> length.csv
+echo "species,length" > length.csv
+
+bioawk -c fastx '{print "H_lineata," length($seq)}' m64219e_220329_140935.hifi_reads.fastq.gz >> length.csv
+bioawk -c fastx '{print "H_vespertillio," length($seq)}'  ERR3980579_1.fastq >> length.csv
+bioawk -c fastx '{print "M_sexta," length($seq)}'  SRR12495748_1.fastq >> length.csv
 
 setwd("/blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/")
 
