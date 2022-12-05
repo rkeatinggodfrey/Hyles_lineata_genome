@@ -413,6 +413,12 @@ busco -f -i /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/brak
 
  lepidoptera =  C:95.6%[S:86.5%,D:9.1%],F:1.1%,M:3.3%,n:5286  
 
+Check how many genes
+
+```grep ">" augustus.hints.aa | wc -l```
+
+21323
+
 
  ### (b) from Hyles euphorbiae transcriptome using BUSCO lepidoptera or endopterygota ortholog database (odb10_lepidoptera)
 
@@ -448,6 +454,11 @@ endopterygota = C:92.9%[S:89.2%,D:3.7%],F:3.0%,M:4.1%,n:2124
 
 lepidoptera = C:93.3%[S:89.4%,D:3.9%],F:1.8%,M:4.9%,n:5286 
 
+Check how manay of genes
+
+```grep ">" augustus.hints.aa | wc -l```
+
+19425
 
 # Genome Annotation: TSEBRA
 
@@ -478,7 +489,7 @@ module load python3
 
 /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/TSEBRA/bin/tsebra.py \
 --keep_gtf /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/braker_prot_arth/braker/augustus.hints.gtf,/blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/braker_RNA_He/braker/augustus.hints.gtf \
--c /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/Hl_tsebra.cfg \
+-c /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/TSEBRA/config/default.cfg \
 -e /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/braker_prot_arth/braker/hintsfile.gff,/blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/braker_RNA_He/braker/hintsfile.gff \
 -o Hl_protein_rnaseq_combine.gtf
 
@@ -487,6 +498,12 @@ module load python3
 /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/Hl_protein_rnaseq_combine.gtf \
 Hl_braker_final_aa.fa
 ```
+
+Check how many genes:
+```grep ">" Hl_braker_final_aa.fa | wc -l```
+
+33756 this looks like too many
+
 
 ### (b) Run BUSCO on final gene model set
 
@@ -518,6 +535,7 @@ busco -f -i /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/brak
  
  lepidoptera = C:97.8%[S:55.2%,D:42.6%],F:0.5%,M:1.7%,n:5286 
 
- This seems to indicate there are a many isoforms of certain genes in this gene set. 
+ This duplication percent seems to indicate there are a many isoforms of certain genes in this gene set. 
+
 
 
