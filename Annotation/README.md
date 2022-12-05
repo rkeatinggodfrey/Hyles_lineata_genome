@@ -218,6 +218,7 @@ prothint.py --threads ${SLURM_CPUS_ON_NODE:-1} ${genome} ${protein}
 dates;hostname;pwd
 
 module load prothint/2.6.0
+module load genemark_es/4.69
 
 prothint.py /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/H_lineata_assembly_final_3masked.fasta /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/arthropod.proteins.fasta
 ```
