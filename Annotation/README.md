@@ -139,8 +139,7 @@ Resources:
 
 ```wget https://v100.orthodb.org/download/odb10_arthropoda_fasta.tar.gz
 tar xvf odb10_arthropoda_fasta.tar.gz
-arthropoda/Rawdata/* > arthropod.proteins.fasta
-```
+arthropoda/Rawdata/* > arthropod.proteins.fasta```
 
 if the wget command throws a certificate error, use:
 ```wget --no-check-certificate https://v100.orthodb.org/download/odb10_arthropoda_fasta.tar.gz```
