@@ -19,6 +19,7 @@ Resources:
 #!/bin/bash
 #SBATCH --job-name=H_lineata_repeatmod
 #SBATCH -o %A_%a.220616_Hl_repeatmod.out
+#SBATCH --mail-user=rkeating.godfrey@hpg.rc.ufl.edu
 #SBATCH --mail-type=FAIL,END
 #SBATCH -c 20
 #SBATCH --mem-per-cpu=8gb
@@ -64,7 +65,7 @@ date;hostname;pwd
 
 module load repeatmasker/4.1.1
 
-RepeatMasker -pa 8 -a -s -xsmall -gff -no_is -lib H_lineata-families.fa /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/H_lineata_hifiasm_220728_purge.fasta$
+RepeatMasker -pa 8 -a -s -xsmall -gff -no_is -lib H_lineata-families.fa /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/H_lineata_hifiasm_220728_purge.fasta &> RMask.run.adp.out
 ```
 
 Check and see how many repeats were masked in this single-step masking process to compare with heirarchical one that follows
@@ -297,6 +298,8 @@ I did this in an ncbi folder I use for downloading, so I moved the paired-end fa
 ```mv *.fastq ../Hl_braker2/```
 
 ### (b) Map RNA sequencing reads to masked genome using guidance from [Kim and Kim 2022](https://www.sciencedirect.com/science/article/pii/S2666166722003860?via%3Dihub#sec2)
+
+### if your transcriptome is a fasta file, you can specify by using -2 -f before the file path to the transcriptome file
 
 ```
 #!/bin/bash
