@@ -202,6 +202,7 @@ module load prothint/2.6.0
 prothint.py --threads ${SLURM_CPUS_ON_NODE:-1} ${genome} ${protein}
 ```
 
+I ended up submitting the prothint submission script below instead. I got an error for not having genemark installed
 
 ```bash
 #!/bin/bash
@@ -262,6 +263,75 @@ braker.pl \
 I moved the files associated with this protein-based annoation to a folder called braker_protein_arth
 
 ## (2) Running BRAKER with RNA-seq data
+
+### (a) RNA-Seq data from caterpillar and adult 
+
+(RNA reads from Jay Goldberg, University of Arizona)
+
+First you need to trim using trimmomatic. If reads are from ncbi they may already be trimmed.
+
+sbatch -J Hl_trimmomatic trimmomatic.sh
+
+```bash
+#!/bin/bash
+#SBATCH --job-name=%x_%j
+#SBATCH --output=%x_%j.log
+#SBATCH --mail-user=rkeating.godfreyg@ufl.edu
+#SBATCH --mail-type=FAIL,END
+#SBATCH --mem-per-cpu=4gb
+#SBATCH --time=24:00:00
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=16
+
+module load trimmomatic/0.39
+
+for sample in $(ls *fq.gz | cut -d "_" -f 1,2 | sort | uniq)
+do
+    fq1=$(ls ${sample}_1*)
+    fq2=$(ls ${sample}_2*)
+    trimmomatic PE -threads 16 \
+    ${fq1} ${fq2} \
+    ${sample}_1_clean.fq.gz ${sample}_1_unpaired.fq.gz \
+    ${sample}_2_clean.fq.gz ${sample}_2_unpaired.fq.gz LEADING:3 TRAILING:3 MINLEN:36
+done
+```
+
+
+Following trimming, you will map these reads to your genome to create bam files. 
+
+```bash
+#!/bin/bash
+#SBATCH --job-name=%x_%j_Hl_mapreads
+#SBATCH --output=%A_%a.log
+#SBATCH --mail-user=rkeating.godfrey@ufl.edu
+#SBATCH --mail-type=FAIL,END
+#SBATCH --mem-per-cpu=8gb
+#SBATCH --time=96:00:00
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=32
+
+module load hisat2/2.2.1-3n
+
+hisat2-build /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/H_lineata_assembly_final_3masked.fasta /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/braker_RNA_Hl/Hl_Hifi
+
+for sample in $(ls /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/braker_RNA_Hl/*fq.gz | cut -d "_" -f 1,2,3,4,5,6,7 | sort | uniq)
+do
+    fq1=$(ls ${sample}_1_clean*)
+    fq2=$(ls ${sample}_2_clean*)
+    name=$(echo ${sample} | cut -d "/" -f 10 | cut -d "_" -f 1)
+    hisat2 -p 32 \
+    -x /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/braker_RNA_Hl/Hl_Hifi \
+    -1 ${fq1} -2 ${fq2} -S ${name} --phred33 --novel-splicesite-outfile ${name}.junctions --rna-strandness FR
+done
+
+```
+The .log file output will contain mapping percentages. For my RNA-seq data the mapping rates were as follows:
++ Adult Male: 84.50%
++ Adult Female: 87.80%
++ Larva: 91.36%
+
+
+## (3) Running BRAKER with assembled transcriptome data
 
 ### (a) Download transcriptome data as paired end reads
 
@@ -327,7 +397,7 @@ hisat2 -x Hl_Hifi -p 10 -1 /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/
 
 ```
 
-### (c) Run braker with RNA evidence
+### (c) Run braker with transcriptome RNA evidence
 
 I created a new folder for this annotation evidence called braker_RNA_He and put the files needed in it (except the assembly, which lives in the parent genome folder)
 
