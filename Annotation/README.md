@@ -264,7 +264,7 @@ I moved the files associated with this protein-based annoation to a folder calle
 
 ## (2) Running BRAKER with RNA-seq data
 
-### (a) RNA-Seq data from caterpillar and adult 
+### (a) Map RNA-Seq data from caterpillar and adult to genome
 
 (RNA reads from Jay Goldberg, University of Arizona)
 
@@ -297,7 +297,13 @@ done
 ```
 
 
-Following trimming, you will map these reads to your genome to create bam files. 
+Following trimming, I put all of the trimmed filed in a subfolder called "trimmed" (not necessary if you do not want to). You will map these reads to your genome using Hisat2 and then convert the output sam files to bam files using samtools.
+
+Resources:
++ [RNA-seq analysis in R](https://bioinformatics-core-shared-training.github.io/RNAseq_September_2019/html/C_Alignment_with_HISAT2_practical.html)
+
+
+```sbatch -J Hl.hisat hisat2.sh```
 
 ```bash
 #!/bin/bash
@@ -311,24 +317,59 @@ Following trimming, you will map these reads to your genome to create bam files.
 #SBATCH --cpus-per-task=32
 
 module load hisat2/2.2.1-3n
+module load samtools 
 
-hisat2-build /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/H_lineata_assembly_final_3masked.fasta /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/braker_RNA_Hl/Hl_Hifi
+hisat2-build /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/H_lineata_assembly_final_3masked.fasta /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/braker_RNA_Hl/trimmed/Hlhisat
 
-for sample in $(ls /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/braker_RNA_Hl/*fq.gz | cut -d "_" -f 1,2,3,4,5,6,7 | sort | uniq)
+for sample in $(ls /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/braker_RNA_Hl/trimmed/*fq.gz | cut -d "_" -f 1,2,3,4,5,6,7 | sort | uniq)
 do
     fq1=$(ls ${sample}_1_clean*)
     fq2=$(ls ${sample}_2_clean*)
-    name=$(echo ${sample} | cut -d "/" -f 10 | cut -d "_" -f 1)
+    name=$(echo ${sample} | cut -d "_" -f 1,2)
     hisat2 -p 32 \
-    -x /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/braker_RNA_Hl/Hl_Hifi \
-    -1 ${fq1} -2 ${fq2} -S ${name} --phred33 --novel-splicesite-outfile ${name}.junctions --rna-strandness FR
+    -x /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/braker_RNA_Hl/Hlhisat \
+    -1 ${fq1} -2 ${fq2} --phred33 --rna-strandness FR | samtools sort -@ 10 -O BAM -o Hl_Hl_aln.bam
 done
 
 ```
-The .log file output will contain mapping percentages. For my RNA-seq data the mapping rates were as follows:
+The .log file output will contain mapping percentages. For the RNA-seq files the mapping rates were as follows:
 + Adult Male: 84.50%
 + Adult Female: 87.80%
 + Larva: 91.36%
+
+
+### (b) Run BRAKER with RNA-seq bam alignment file
+
+```sbatch -J Hl_braker2_RNAseq braker2.RNAseq.sh /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/H_lineata_assembly_final_3masked.fasta Hyles_lineata_RNAseq```
+
+```bash
+#!/bin/bash
+#SBATCH --job-name=%x_%j
+#SBATCH --output=%x_%j.log
+#SBATCH --mail-user=rkeating.godfrey@ufl.edu
+#SBATCH --mail-type=FAIL,END
+#SBATCH --mem-per-cpu=8gb
+#SBATCH --time=96:00:00
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=32
+dates;hostname;pwd
+
+genome=${1}
+species=${2}
+
+module load conda
+module load braker/2.1.6
+
+braker.pl \
+--AUGUSTUS_CONFIG_PATH=/blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_busco/Augustus/config \
+--genome=${genome} --species ${species} \
+--bam=/blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/braker_RNA_Hl/Hl_Hl.aln.bam \
+--softmasking --gff3 --cores 32 --AUGUSTUS_ab_initio
+```
+
+Number of genes from braker2 with RNA-Seq from Hyles lineata
+20268
+
 
 
 ## (3) Running BRAKER with assembled transcriptome data
@@ -393,7 +434,7 @@ hisat2-build /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/H_lineata_asse
 # map RNA sequencing reads to the masked genome 
 
 hisat2 -x Hl_Hifi -p 10 -1 /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/SRR1695429_1.fastq  \
--2 /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/SRR1695429_2.fastq | samtools sort -@ 10 -O BAM -o Hl_He_aln.bam
+-2 /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/SRR1695429_2.fastq | samtools sort -@ 10 -O BAM -o Hl_He_sort.bam
 
 ```
 
@@ -412,7 +453,7 @@ I created a new folder for this annotation evidence called braker_RNA_He and put
 #SBATCH --mem-per-cpu=8gb
 #SBATCH --time=96:00:00
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=32
+#SBATCH --cpus-per-task=24
 dates;hostname;pwd
 
 genome=${1}
@@ -422,9 +463,9 @@ module load conda
 module load braker/2.1.6
 
 braker.pl \
---AUGUSTUS_CONFIG_PATH=/blue/kawahara/yimingweng/LepidoPhylo_Project/busco_out/Augustus/config \
+--AUGUSTUS_CONFIG_PATH=/blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_busco/Augustus/config \
 --genome=${genome} --species ${species} \
---bam=/blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker/braker_RNA_He/Hl_He_sort.bam \
+--bam=/blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/braker_RNA_He/Hl_He_sort.bam \
 --softmasking --gff3 --cores 32 --AUGUSTUS_ab_initio
 ```
 
