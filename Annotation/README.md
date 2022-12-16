@@ -3,7 +3,7 @@
 This script describes the steps taken to annotate the Hyles lineata genome.
 General assembly steps are as follows:
 + (1) Repeat modeling using Repeat Modeler http://www.repeatmasker.org/RepeatModeler/
-+ (2) Repeat masking (may be redundant if you're going to run Maker annotation)
++ (2) Repeat masking
 + (3) Prep for BRAKER2 annotation: NCBI SRA toolkit and NCBI Entrez Programming Utilities t downloading trascriptomes and protein sequences from closely related species. 
 + (4) BRKAER2 annotation 
 
@@ -127,26 +127,22 @@ BRAKER2 provides a method for annotating using protein or RNA-seq data. They des
 Resources:
 + Running BRAKER with proteins of any evolutionary distance: 
 + Running BRAKER with RNA-seq data: https://github.com/Gaius-Augustus/BRAKER#braker-with-rna-seq-data
++ Output files: https://github.com/Gaius-Augustus/BRAKER#output-of-braker
+
+Braker will create a subfolder called "braker" within which you fill find:
++ braker.gtf with the field names seqname source feature start end score strand frame transcript ID and gene ID
++ augustus.hints.aa file that contains transcripts. Run BUSCO on these using the Lepidoptera database.
+
+
 
 
 ## (1) Running BRAKER with Protein data
 
 ## (a) Retrieve protein sequences
 
-### First retreive protein sequences from the BUSCO arthropod database
+### Retrieve protein sequences from a well-annotated, closely related species
 
-```cd /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2```
-
-```wget https://v100.orthodb.org/download/odb10_arthropoda_fasta.tar.gz
-tar xvf odb10_arthropoda_fasta.tar.gz
-arthropoda/Rawdata/* > arthropod.proteins.fasta```
-
-if the wget command throws a certificate error, use:
-```wget --no-check-certificate https://v100.orthodb.org/download/odb10_arthropoda_fasta.tar.gz```
-
-### Retrieve protein sequences from a well-annotated, closely related species (optional) 
-
-I additionaly downloaded M. sexta protein sequences into my ncbi downloads folder and move them into the folder where I am running BRAKER2
+I downloaded M. sexta protein sequences into my ncbi downloads folder and move them into the folder where I am running BRAKER2
 
 Download from ncbi:
 ```bash 
@@ -168,18 +164,19 @@ module load edirect/12.2
 esearch -db protein -query "Manduca sexta [ORGN]" | efetch -format fasta > M_sexta_protein.fasta
 ```
 
+check how many proteins are in this file: ```grep ">" M_sexta_protein.fasta | wc -l```
+
+53159
+
 move into BRAKER2 folder:
 
 ```mv M_sexta_protein.fasta /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/ ```
 
-Now combine these with the other arthropod proteins
-
-```cat arthropod.proteins.fasta M_sexta_protein.fasta > all.proteins.fasta ```
 
 ## (b) Run [ProtHint](https://github.com/gatech-genemark/ProtHint#protein-database-preparation) to create protein gff file.
 BRAKER can use create a protein gff file as the first step, but it may be better to create this file on your own and then feed it into BRAKER.
 
-```sbatch -J Hl_ProtHint prothint.sh /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/H_lineata_assembly_final_3masked.fasta /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/all_proteins.fasta```
+```sbatch -J Hl_ProtHint prothint.sh /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/H_lineata_assembly_final_3masked.fasta /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/M_sexta_protein.fasta```
 
 ```bash
 #!/bin/bash
@@ -220,7 +217,7 @@ dates;hostname;pwd
 module load prothint/2.6.0
 module load genemark_es/4.69
 
-prothint.py /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/H_lineata_assembly_final_3masked.fasta /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/arthropod.proteins.fasta
+prothint.py /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/H_lineata_assembly_final_3masked.fasta /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/M_sexta_protein.fasta
 ```
 
 This will create an output that is ready to use in BRAKER and AUGUSTUS:
@@ -228,13 +225,11 @@ This will create an output that is ready to use in BRAKER and AUGUSTUS:
 
 ## (c) Run BRAKER2 with protein evidence
 
-First I ran Braker2 with protein evidence from arthropoda
+First I ran Braker2 with protein evidence from Manduca sexta
 
 When trying to run this I noticed that in the file path /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_busco/Augustus/config/species there is a "Sp_1", not Hyles_lineata so I changed the name of this directory 
 
-```sbatch -J Hl_braker2_protein Hl_braker2_protein.sh /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/H_lineata_assembly_final_3masked.fasta /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/prothint_augustus.gff Hyles_lineata
-
-sbatch -J Mr_braker2_protein braker2_protein.sh /blue/kawahara/rkeating.godfrey/Manduca_rustica_genome/M_rustica_final_assembly_3masked.fasta /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/prothint_augustus.gff Manduca_rustica
+```sbatch -J Hl_prot_braker2 Hl_braker2_protein.sh /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/H_lineata_assembly_final_3masked.fasta /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/braker_prot_Ms/prothint_augustus.gff Hyles_lineata```
 
 ```bash
 #!/bin/bash
@@ -260,7 +255,7 @@ braker.pl \
 --genome=${genome} --species ${species} --hints=${protein_gff} --softmasking --gff3 --cores 32 --AUGUSTUS_ab_initio
 ```
 
-I moved the files associated with this protein-based annoation to a folder called braker_protein_arth
+
 
 ## (2) Running BRAKER with RNA-seq data
 
@@ -367,17 +362,12 @@ braker.pl \
 --softmasking --gff3 --cores 32 --AUGUSTUS_ab_initio
 ```
 
-Number of genes from braker2 with RNA-Seq from Hyles lineata
-20268
 
-
-
-## (3) Running BRAKER with assembled transcriptome data
+## (3) Running BRAKER with assembled transcriptome from closely related species (in this case Hyles euphorbiae)
 
 ### (a) Download transcriptome data as paired end reads
 
-The ```--split-files```
-
+The ```--split-files``` in this script provides paired end reads
 
 ```bash
 
@@ -438,7 +428,7 @@ hisat2 -x Hl_Hifi -p 10 -1 /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/
 
 ```
 
-### (c) Run braker with transcriptome RNA evidence
+### (c) Run braker with transcriptome evidence
 
 I created a new folder for this annotation evidence called braker_RNA_He and put the files needed in it (except the assembly, which lives in the parent genome folder)
 
@@ -471,31 +461,17 @@ braker.pl \
 
 
 
-### BRAKER output
+## (3) Evaluate gene models produced by braker2 using BUSCO Lepidoptera ortholog database (odb10_lepidoptera)
 
-The output file  braker.gtf  
+### (a) from Manduca sext protein database 
 
-The field in gft format are: 
-
-seqname source feature start end score strand frame transcript ID and gene ID
-
-Resources: 
-+ https://github.com/Gaius-Augustus/BRAKER#output-of-braker
-
-
-
-
-## (3) Evaluate gene models produced by braker2 
-### (a) from arthropod protein database using BUSCO endopterygota ortholog database (odb10_lepidoptera)
-
-```sbatch Hl_prot_model_busco.sh```
+```sbatch Hl_Ms_prot_model_busco.sh```
 
 
 ```bash
 #!/bin/bash
-
-#SBATCH --job-name=Hl_lep_prot_genemodel_busco
-#SBATCH -o Hl_lep_prot_genemodel_busco.log
+#SBATCH --job-name=Hl_lep_all_genemodel_busco
+#SBATCH -o Hl_lep_all_genemodel_busco.log
 #SBATCH --mail-type=FAIL,END
 #SBATCH --mail-user=rkeating.godfrey@ufl.edu
 #SBATCH --mem-per-cpu=4gb
@@ -512,26 +488,69 @@ module load busco/5.3.0
 module load hmmer/3.2.1
 
 # run busco command
-busco -f -i /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/braker_prot_arth/braker/augustus.hints.aa \
- -o ./Hl_prot_genemod_busco_out \
- -l /data/reference/busco/v5/lineages/endopterygota_odb10 \
+busco -f -i /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/braker_prot_Ms/braker/augustus.hints.aa \
+ -o ./Hl_Ms_genemod_busco_out \
+ -l /data/reference/busco/v5/lineages/lepidoptera_odb10 \
  -m protein -c 12
  ```
  
- Results from dataset endopterygota_odb10
- 
- endopterygota = C:94.6%[S:86.6%,D:8.0%],F:2.0%,M:3.4%,n:2124     
+Result:
 
- lepidoptera =  C:95.6%[S:86.5%,D:9.1%],F:1.1%,M:3.3%,n:5286  
+lepidoptera = C:95.9%[S:85.8%,D:10.1%],F:0.9%,M:3.2%,n:5286 
 
-Check how many genes
-
+How many genes predicted using Manduca sexta protein evidence?
 ```grep ">" augustus.hints.aa | wc -l```
 
-21323
+20967
+
+I moved the files associated with this protein-based annoation to a folder called braker_prot_Ms
 
 
- ### (b) from Hyles euphorbiae transcriptome using BUSCO lepidoptera or endopterygota ortholog database (odb10_lepidoptera)
+
+ ### (b) from Hyles lineata RNAseq evidence 
+
+```sbatch Hl_RNAseq_model_busco.sh```
+
+```bash
+#!/bin/bash
+#SBATCH --job-name=Hl_lep_HlRNA_genemodel_busco
+#SBATCH -o Hl_lep_HlRNA_genemodel_busco.log
+#SBATCH --mail-type=FAIL,END
+#SBATCH --mail-user=rkeating.godfrey@ufl.edu
+#SBATCH --mem-per-cpu=4gb
+#SBATCH -t 5:00:00
+#SBATCH -c 12
+
+# define configure file for BUSCO and augustus
+# For augustus, if encounter an authorization issue (error pops up when running busco), try to download the augustus repo and use its config dir
+export BUSCO_CONFIG_FILE="blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_busco/config.ini"
+export AUGUSTUS_CONFIG_PATH="/blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_busco/Augustus/config/"
+
+# load busco, make sure this is the latest version
+module load busco/5.3.0
+module load hmmer/3.2.1
+
+# run busco command
+busco -f -i /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/braker_RNA_Hl/braker/augustus.hints.aa \
+ -o ./Hl_RNA_genemod_busco_out \
+ -l /data/reference/busco/v5/lineages/lepidoptera_odb10 \
+ -m protein -c 12 
+ ```
+
+Result:
+
+lepidoptera =  C:95.7%[S:84.3%,D:11.4%],F:1.4%,M:2.9%,n:5286 
+
+How many genes predicted using Hyles lineata RNA-seq evidence?
+```grep ">" augustus.hints.aa | wc -l```
+
+20268
+
+I moved the files associated with this transcriptome-based annoation to a folder called braker_RNA_Hl
+
+
+ 
+ ### (c) from Hyles euphorbiae transcriptome evidence
 
  ```bash
  #!/bin/bash
@@ -559,17 +578,19 @@ busco -f -i /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/brak
  -m protein -c 12
  ```
 
-Result
-
-endopterygota = C:92.9%[S:89.2%,D:3.7%],F:3.0%,M:4.1%,n:2124 
+Result:
 
 lepidoptera = C:93.3%[S:89.4%,D:3.9%],F:1.8%,M:4.9%,n:5286 
 
-Check how manay of genes
+How many genes predicted using Hyles euphorbiae transcriptome as evidence?
 
 ```grep ">" augustus.hints.aa | wc -l```
 
 19425
+
+I moved the files associated with this transcriptome-based annoation to a folder called braker_RNA_He
+
+
 
 # Genome Annotation: TSEBRA
 
