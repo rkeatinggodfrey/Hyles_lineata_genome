@@ -463,7 +463,7 @@ braker.pl \
 
 ## (3) Evaluate gene models produced by braker2 using BUSCO Lepidoptera ortholog database (odb10_lepidoptera)
 
-### (a) from Manduca sext protein database 
+### (a) from Manduca sexta protein database 
 
 ```sbatch Hl_Ms_prot_model_busco.sh```
 
@@ -594,6 +594,8 @@ I moved the files associated with this transcriptome-based annoation to a folder
 
 # Genome Annotation: TSEBRA
 
+TSEBRA is a transcript selector that allows you to combine the Braker outputs from different evidence into a single list of transcripts / predicted amino acid sequences.
+
 ### (a) Combine gene models from protein and transcriptome evidence
 
 Resources:
@@ -620,26 +622,53 @@ Gather necessary files
 module load python3
 
 /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/TSEBRA/bin/tsebra.py \
---keep_gtf /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/braker_prot_arth/braker/augustus.hints.gtf,/blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/braker_RNA_He/braker/augustus.hints.gtf \
+--keep_gtf /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/braker_prot_Ms/braker/augustus.hints.gtf,/blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/braker_RNA_Hl/braker/augustus.hints.gtf,/blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/braker_RNA_He/braker/augustus.hints.gtf \
 -c /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/TSEBRA/config/default.cfg \
--e /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/braker_prot_arth/braker/hintsfile.gff,/blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/braker_RNA_He/braker/hintsfile.gff \
--o Hl_protein_rnaseq_combine.gtf
+-e /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/braker_prot_Ms/braker/hintsfile.gff,/blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/braker_RNA_Hl/braker/hintsfile.gff,/blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/braker_RNA_He/braker/hintsfile.gff \
+-o Hl_all_combine.gtf
 
 /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_busco/Augustus/scripts/gtf2aa.pl \
 /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/H_lineata_assembly_final_3masked.fasta \
-/blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/Hl_protein_rnaseq_combine.gtf \
-Hl_braker_final_aa.fa
+/blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/Hl_all_combine.gtf \
+Hl_all_tsebra_aa.fa
 ```
 
 Check how many genes:
-```grep ">" Hl_braker_final_aa.fa | wc -l```
+```grep ">" Hl_all_tsebra_aa.fa | wc -l```
 
-33756 this looks like too many
+18336 (with default.ctg set)
+
+This number of genes seems low, so I am going to try to run TSEBRA with a different config file, namely one that prioritizes the RNA-seq evidence.
+The cfg file looks like this:
+
+```# Weight for each hint source
+# Values have to be >= 0
+P 0.1
+E 10000
+C 5
+M 1
+# Required fraction of supported introns or supported start/stop-codons for a transcript
+# Values have to be in [0,1]
+intron_support 0.25
+stasto_support 2
+# Allowed difference for each feature 
+# Values have to be in [0,1]
+e_1 0.25
+e_2 1
+# Values have to be >0
+e_3 25
+e_4 10
+```
+
+Check how many genes in this outup
+```grep ">" Hl_all_tsebra_prefb1_aa.fa | wc -l```
+
+20041 (when RNA evidence is prefered)
 
 
-### (b) Run BUSCO on final gene model set
+### (b) Run BUSCO on this gene model set
 
-``bash
+```bash
  #!/bin/bash
 #SBATCH --job-name=Hl_lep_all_genemodel_busco
 #SBATCH -o Hl_lep_allc_genemodel_busco.log
@@ -659,15 +688,79 @@ module load busco/5.3.0
 module load hmmer/3.2.1
 
 # run busco command
-busco -f -i /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/braker_RNA_He/braker/Hl_braker_final_aa.fa \
+busco -f -i /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/braker_RNA_He/braker/Hl_all_tsebra_prefb1_aa.fa \
  -o ./Hl_all_genemod_busco_out \
  -l /data/reference/busco/v5/lineages/lepidoptera_odb10 \
  -m protein -c 12
  ```
  
- lepidoptera = C:97.8%[S:55.2%,D:42.6%],F:0.5%,M:1.7%,n:5286 
+Result:
 
- This duplication percent seems to indicate there are a many isoforms of certain genes in this gene set. 
+lepidoptera = C:96.0%[S:80.6%,D:15.4%],F:0.6%,M:3.4%,n:5286 
+
+This seems like a pretty good result to me. The duplication is a little high, but I will move forward with this as my final predicted transcript set from structural annotation. The next step will be to functionally annotate these transcripts / putative genes. 
+
+
+# Functional Annotation: DIAMOND
+
+Diamond is a sequences aligner that uses blastp to search for your translated transcripts (braker's aa output) in a database of sequences (chosen by you). We will blast our transcripts against two databases: (1) ncbi's non-redundant protein database and (2) the Swiss Prot arthropod database.
+
+Resources:
++ https://github.com/bbuchfink/diamond
++ https://github.com/bbuchfink/diamond/wiki
++ tutorial: https://github.com/bbuchfink/diamond/wiki/1.-Tutorial
+
+
+### (1) Non-redundant protein database
+you can download the database from ncbi here
+```wget "ftp://ftp.ncbi.nlm.nih.gov/blast/db/FASTA/nr.gz"```
+I used an existing copy on the orange (storage) drive of the UF hipergator cluster (provided by postdoc YiMing Weng)
+
+sbatch -J Hl_nr /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/diamond/Hl_diamond.sh /orange/kawahara/yimingweng/databases/nr.dmnd /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/Hl_all_tsebra_prefb1_aa.fa 0.00001 Hl_nr_k5_1e5
+
+```bash
+#!/bin/bash
+#SBATCH --job-name=Hl_diamond
+#SBATCH -o Hl_diamond.log
+#SBATCH --mail-type=FAIL,END
+#SBATCH --mail-user=rkeating.godfrey@ufl.edu
+#SBATCH --mem-per-cpu=8gb
+#SBATCH -t 48:00:00
+#SBATCH -c 24
+#SBATHC --account=kawahara
+#SBATCH --qos=kawahara-b
+
+module load diamond/2.0.9
+
+# example
+
+database=${1} # full path to the database in dmnd format, the diamond will use it to find the function for the querying gene model
+gene_model=${2} # gene model for functional annotation in fasta format
+cutoff=${3}
+outname=${4}
+path=$(echo ${database} | rev | cut -d "/" -f 2- | rev)
+database_name=$(echo ${database} | rev | cut -d "/" -f 1 | rev | cut -d "." -f 1)
+dmnd=$(ls ${path}/${database_name}.dmnd)
+
+if [ -z "${dmnd}" ]
+then
+  echo "converting database from fasta to dmnd format"
+  diamond makedb --in ${database} -d nr
+else
+  echo -e "the database has been converted to dmnd format, skip this step and run diamond"
+  diamond blastp -k5 -e ${cutoff} -d ${database} -q ${gene_model} -o ${outname}.tsv
+fi
+```
+
+### (2) Arthropod uniprot database
+
+Here I also link to an existing copy of the database on the HiperGator Orange drive
+
+/orange/kawahara/yimingweng/databases/uniprot_arthropod.dmnd
+
+sbatch -J Hl_uniprot /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/diamond/Hl_diamond.sh /orange/kawahara/yimingweng/databases/uniprot_arthropod.dmnd /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/Hl_all_tsebra_prefb1_aa.fa 0.00001 Hl_uniprot_k5_1e5
+
+
 
 
 
