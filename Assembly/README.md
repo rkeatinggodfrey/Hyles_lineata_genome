@@ -89,7 +89,7 @@ I used the output file ````prefix`.bp.p_ctg.gfa``` (assembly graph of primary co
 
 Description of step:
 
-Here we use the assemblystat.py script (source https://www.nature.com/articles/s41592-020-01056-5)
+Here we use the assemblystat.py script [source](https://www.nature.com/articles/s41592-020-01056-5)
 
 You will need to convert your primary contig file from .gfa format into .fa (fasta) format to run the assemblystat script.
 

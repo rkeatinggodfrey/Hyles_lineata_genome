@@ -195,6 +195,7 @@ genome=${1}
 protein=${2}
 
 module load prothint/2.6.0
+module load genemark_es/4.69
 
 prothint.py --threads ${SLURM_CPUS_ON_NODE:-1} ${genome} ${protein}
 ```
@@ -271,7 +272,7 @@ sbatch -J Hl_trimmomatic trimmomatic.sh
 #!/bin/bash
 #SBATCH --job-name=%x_%j
 #SBATCH --output=%x_%j.log
-#SBATCH --mail-user=rkeating.godfreyg@ufl.edu
+#SBATCH --mail-user=rkeating.godfrey@ufl.edu
 #SBATCH --mail-type=FAIL,END
 #SBATCH --mem-per-cpu=4gb
 #SBATCH --time=24:00:00
@@ -280,7 +281,7 @@ sbatch -J Hl_trimmomatic trimmomatic.sh
 
 module load trimmomatic/0.39
 
-for sample in $(ls *fq.gz | cut -d "_" -f 1,2 | sort | uniq)
+for sample in $(ls *fq.gz | cut -d "_" -f 1,2 | sort | uniq) # the -f in this line indicates "retain fields 1 and 2 deliminted by an underscore
 do
     fq1=$(ls ${sample}_1*)
     fq2=$(ls ${sample}_2*)
@@ -663,7 +664,7 @@ e_4 10
 Check how many genes in this outup
 ```grep ">" Hl_all_tsebra_prefb1_aa.fa | wc -l```
 
-20041 (when RNA evidence is prefered)
+20003 (when RNA evidence is prefered)
 
 
 ### (b) Run BUSCO on this gene model set
@@ -696,10 +697,11 @@ busco -f -i /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/brak
  
 Result:
 
-lepidoptera = C:96.0%[S:80.6%,D:15.4%],F:0.6%,M:3.4%,n:5286 
+lepidoptera = C:95.9%[S:80.7%,D:15.2%],F:0.6%,M:3.5%,n:5286  
 
 This seems like a pretty good result to me. The duplication is a little high, but I will move forward with this as my final predicted transcript set from structural annotation. The next step will be to functionally annotate these transcripts / putative genes. 
 
+UPDATE: Braker may be predicting too many transcripts from related organism protein evidence or TSEBRA may not be properly culling duplicate transcripts and therefore I will use only RNAseq-based annotation for functional steps and color gene analysis 
 
 # Functional Annotation: DIAMOND
 
@@ -716,7 +718,9 @@ you can download the database from ncbi here
 ```wget "ftp://ftp.ncbi.nlm.nih.gov/blast/db/FASTA/nr.gz"```
 I used an existing copy on the orange (storage) drive of the UF hipergator cluster (provided by postdoc YiMing Weng)
 
-sbatch -J Hl_nr /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/diamond/Hl_diamond.sh /orange/kawahara/yimingweng/databases/nr.dmnd /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/Hl_all_tsebra_prefb1_aa.fa 0.00001 Hl_nr_k5_1e5
+You will also turn the output .tsv files into .gff files using the python script blast2gff.py available from [genomeGTFtools](https://github.com/wrf/genomeGTFtools#blast2gff). Citation [here](https://elifesciences.org/articles/31176). 
+
+```sbatch -J Hl_nr /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/diamond/Hl_diamond.sh /orange/kawahara/yimingweng/databases/nr.dmnd /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/braker_RNA_Hl/braker/augustus.hints.aa 0.00001 Hl_RNA_nr_k5_1e5```
 
 ```bash
 #!/bin/bash
@@ -731,6 +735,7 @@ sbatch -J Hl_nr /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/
 #SBATCH --qos=kawahara-b
 
 module load diamond/2.0.9
+module load python3
 
 # example
 
@@ -750,6 +755,9 @@ else
   echo -e "the database has been converted to dmnd format, skip this step and run diamond"
   diamond blastp -k5 -e ${cutoff} -d ${database} -q ${gene_model} -o ${outname}.tsv
 fi
+
+# convert the tsv file to gff file
+python3 /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/diamond/blast2gff.py -b ${outname}.tsv > ${outname}.gff
 ```
 
 ### (2) Arthropod uniprot database
@@ -759,8 +767,4 @@ Here I also link to an existing copy of the database on the HiperGator Orange dr
 /orange/kawahara/yimingweng/databases/uniprot_arthropod.dmnd
 
 sbatch -J Hl_uniprot /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/diamond/Hl_diamond.sh /orange/kawahara/yimingweng/databases/uniprot_arthropod.dmnd /blue/kawahara/rkeating.godfrey/Hyles_lineata_genome/Hl_braker2/Hl_all_tsebra_prefb1_aa.fa 0.00001 Hl_uniprot_k5_1e5
-
-
-
-
 
